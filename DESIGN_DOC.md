@@ -1,10 +1,10 @@
-# MTG Automatic Card Scanner Feeder
+# MTG Automatic Card Scanner and Sorter
 
-## Design Document v0.4
+## Design Document v0.5
 
-**Primary target:** Mechanically present one Magic: The Gathering card at a time to an off-the-shelf phone scanner app.
+**Full product target:** Automatically scan, identify, inventory, and route Magic: The Gathering cards into A/B outputs.
 
-**MVP scope:** Scan and catalog a stack into one output tray. No custom recognition software and no physical sorting.
+**MVP target:** Mechanically present one card at a time to an off-the-shelf phone scanner app and move every scanned card into one output tray.
 
 **Primary app candidate:** ManaBox in Quick Mode.
 
@@ -14,7 +14,7 @@
 
 ## Table of Contents
 
-1. [MVP Decision](#1-mvp-decision)
+1. [Product Direction and MVP Boundary](#1-product-direction-and-mvp-boundary)
 2. [Scanner App Assumptions](#2-scanner-app-assumptions)
 3. [Duplicate Card Problem](#3-duplicate-card-problem)
 4. [MVP System Architecture](#4-mvp-system-architecture)
@@ -27,13 +27,54 @@
 
 ---
 
-## 1. MVP Decision
+## 1. Product Direction and MVP Boundary
+
+### 1.1 Full Intended Version
+
+The intended full product is an automatic MTG card intake machine:
+
+```text
+INPUT STACK
+  -> single-card feed
+  -> included scan / recognition
+  -> inventory lookup and rule decision
+  -> A/B splitter
+  -> output A or output B
+```
+
+The full version should eventually include:
+
+- Integrated scanning or image capture controlled by the machine.
+- Card identification without relying on a separate phone scanner app.
+- Inventory/export workflow tied to the recognition result.
+- Configurable A/B routing rules, such as keep/sell, known/unknown, valuable/bulk, or needs-review/accepted.
+- Two physical output paths with a reliable splitter or diverter.
+- Scan-complete feedback before the mechanism advances.
+- Better handling for duplicates, set/printing ambiguity, foils, language, and condition review.
+
+That full product remains the north star, but it is intentionally not the first build.
+
+### 1.2 MVP
+
+The MVP proves the hardest mechanical and workflow assumptions before building a complete scanner/sorter.
 
 The original design attempted to solve recognition, inventory management, feeding, and two-pile sorting at the same time. The simplified MVP delegates recognition and inventory management to an existing phone app and focuses only on the mechanical problem:
 
 > Reliably expose exactly one card, hold it still for scanning, remove it, show a reset frame, and repeat.
 
-### 1.1 Included
+MVP boundary:
+
+| Area | Full version | MVP |
+|---|---|---|
+| Scanning | Included in the machine | Outsourced to phone app |
+| Recognition | Custom or integrated recognition pipeline | Phone app identifies cards |
+| Inventory | Built-in export/reconciliation | Phone app list reviewed by user |
+| Output | A/B split into two destinations | One output tray |
+| Sorting decision | Automatic rules | None |
+| Machine feedback | Scan-complete signal | Fixed timing plus user review |
+| Controller | Embedded controller for mechanics and routing | Arduino controls only feeding/timing/sensing |
+
+### 1.3 MVP Included
 
 - Phone cradle with adjustable camera alignment.
 - Controlled, diffuse lighting.
@@ -45,7 +86,7 @@ The original design attempted to solve recognition, inventory management, feedin
 - A visible and accessible phone screen.
 - Duplicate-safe workflow testing.
 
-### 1.2 Excluded
+### 1.4 MVP Excluded
 
 - Custom OCR or image recognition.
 - Local Scryfall database.
@@ -56,7 +97,7 @@ The original design attempted to solve recognition, inventory management, feedin
 - Automatic set, foil, language, or condition correction.
 - Guaranteed autonomous operation without scanner feedback.
 
-### 1.3 Success Criteria
+### 1.5 MVP Success Criteria
 
 The MVP passes when it can:
 
@@ -69,7 +110,7 @@ The MVP passes when it can:
 
 The first prototype targets bare, standard-size MTG cards. Sleeved, warped, foil, and damaged cards are later validation cases.
 
-### 1.4 Current Design Direction
+### 1.6 Current Design Direction
 
 The MVP remains an Arduino-controlled mechanical feeder paired with an existing phone scanning app. Recognition is outsourced to the app; physical card presentation, timing, sensing, and jam handling belong to this project.
 
