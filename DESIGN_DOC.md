@@ -1,6 +1,6 @@
 # MTG Automatic Card Scanner Feeder
 
-## Design Document v0.3
+## Design Document v0.4
 
 **Primary target:** Mechanically present one Magic: The Gathering card at a time to an off-the-shelf phone scanner app.
 
@@ -8,7 +8,7 @@
 
 **Primary app candidate:** ManaBox in Quick Mode.
 
-**Last updated:** 2026-06-06
+**Last updated:** 2026-06-08
 
 ---
 
@@ -68,6 +68,20 @@ The MVP passes when it can:
 6. Handle consecutive identical cards through either automatic reset behavior or a documented manual tap fallback.
 
 The first prototype targets bare, standard-size MTG cards. Sleeved, warped, foil, and damaged cards are later validation cases.
+
+### 1.4 Current Design Direction
+
+The MVP remains an Arduino-controlled mechanical feeder paired with an existing phone scanning app. Recognition is outsourced to the app; physical card presentation, timing, sensing, and jam handling belong to this project.
+
+Recent concept sketches explored a document-camera-style scanner with a hopper, visible phone cradle, capture lane, positive transport rollers, and a lateral catch bin. Those sketches are useful as a solutioning style, not as final architecture:
+
+- Model the card path as mechanism states, such as loaded, captured, reset, and offloaded.
+- Prefer positive drive through the whole card path over designs where one card must push another card.
+- Treat offload and output-bin geometry as first-class design problems, not afterthoughts.
+- Keep the phone camera aligned over the scan area while leaving the phone screen accessible.
+- Use CAD and rendered views early to catch mechanical contradictions before printing.
+
+The SCAD concepts from that jot session are preliminary. They should inform the next mechanical iteration, but they do not replace the Arduino, NEMA 17, A4988, IR sensing, and timing-control path described below.
 
 ---
 
@@ -217,7 +231,24 @@ For the MVP, the user must remain present and review the app's scanned-card coun
 | IR sensor | Confirm that a card left the scan position |
 | Arduino Nano | Run timing, motor, sensor, pause, and fault logic |
 
-### 4.2 Operating Cycle
+### 4.2 Design Review Method
+
+Each mechanical concept should be reviewed as a full card cycle, not as a static assembly. Before committing to printed parts, render or sketch at least these states:
+
+1. **Loaded:** top card is ready at the feed plane.
+2. **Captured:** one card is held still under the phone camera.
+3. **Reset:** the app sees an empty, opaque, or otherwise clearly changed frame.
+4. **Offloaded:** the scanned card has left the scan area and is entering or stacked in the output tray.
+
+The review should explicitly answer:
+
+- What positively drives the card at each point?
+- Where can a second card start to follow the first?
+- Can the scanned card jam against a wall, lip, detent, or previous card?
+- Does the output tray accept the second, third, and fiftieth card as cleanly as the first?
+- Does any roller, guide, or shutter occlude the artwork while the app is supposed to scan?
+
+### 4.3 Operating Cycle
 
 ```text
 1. Hold the top card stationary.
@@ -277,7 +308,9 @@ Prototype options:
 
 Start with two or four light compression springs and a guided platform. Use adjustable hard stops to define the final card height rather than relying on spring force alone.
 
-### 5.3 Eject Roller
+### 5.3 Drive Mechanism
+
+The first motorized MVP can start with a single rubber eject roller, but the design should not assume that a single roller is sufficient until the full card path is tested.
 
 Initial geometry:
 
@@ -289,6 +322,15 @@ Initial geometry:
 
 The roller should rotate only during ejection. Continuous spinning increases card wear.
 
+If the card loses positive drive before it is fully offloaded, evaluate a two-stage transport:
+
+- A separator roller at the hopper exit pulls exactly one card from the stack.
+- A downstream transport roller or paired edge rollers continue moving the same card through the scan lane and into the output path.
+- The rollers are spaced so the card is always controlled by at least one driven contact point.
+- Any edge rollers must avoid hiding card artwork or border areas required by the scanner app during the scan dwell.
+
+This is a candidate refinement, not yet a locked requirement. Its purpose is to avoid fragile "card pushes previous card" behavior.
+
 ### 5.4 Single-Card Separation
 
 Use a height-adjustable exit lip with a gap slightly above one card thickness and below two-card thickness.
@@ -296,6 +338,8 @@ Use a height-adjustable exit lip with a gap slightly above one card thickness an
 Add a low-friction support surface and a small high-friction separation pad near the exit if needed. The separator must be replaceable because material choice will require experimentation.
 
 Do not tune the slot against a single card. Test thickness variation across at least 50 cards.
+
+Avoid any separator, lip, or detent that the card must climb after the scan. A ridge that is harmless in CAD can still buckle a thin card if the card is pushed horizontally into it.
 
 ### 5.5 Reset Shutter
 
@@ -318,7 +362,29 @@ Possible mechanisms:
 
 The passive flap is the first concept to test because it avoids another motor. If it does not produce a long enough reset frame, use an actively timed servo or linkage.
 
-### 5.6 Phone Cradle
+If a separate capture lane is used instead of scanning the top card directly, the reset frame may be created by fully clearing the scan area before the next card arrives. This must be proven with duplicate-card tests rather than assumed.
+
+### 5.6 Offload and Output Tray
+
+The output tray must be designed as part of the feed path. A tray that works for the first card can still jam once cards begin stacking.
+
+Requirements:
+
+- The scanned card must be positively driven or guided until it is committed to the output path.
+- The card should not be pushed flat into a vertical wall.
+- Entry into the output tray needs clearance for an accumulating stack.
+- The tray should register cards neatly enough that they do not rebound into the feed path.
+- The IR exit sensor should count a card only after it has cleared the scan position, not merely after it begins moving.
+
+Possible implementations:
+
+1. **Direct side output:** The eject roller drives the card completely out of the scan area into a shallow tray.
+2. **Capture lane with drop or chute:** A downstream roller drives the scanned card off the lane, then gravity guides it into a lower catch bin.
+3. **Opaque reset shutter with top-stack scan:** The card exits directly while the shutter creates the reset frame over the next top card.
+
+The chute/bin concept from the preliminary SCAD sketches is worth exploring, but only after verifying that the second and later cards do not collide, shingle, or jam at the tray mouth.
+
+### 5.7 Phone Cradle
 
 Requirements:
 
@@ -331,7 +397,9 @@ Requirements:
 - Foam pads prevent movement and scratching.
 - Fine X/Y adjustment for centering.
 
-### 5.7 Lighting
+The cradle should be treated like a small copy stand. The phone body does not need to be centered over the card; the rear camera does. Account for corner-mounted phone cameras with an adjustable aperture or sliding phone stop.
+
+### 5.8 Lighting
 
 The current single WS2812 module is useful only for early experiments. It is not enough for uniform card illumination.
 
@@ -344,7 +412,7 @@ Preferred lighting:
 
 Foils should be tested separately because they may require lower brightness or asymmetric lighting.
 
-### 5.8 Bottom-Up Alternative
+### 5.9 Bottom-Up Alternative
 
 A bottom-up design would place the phone below a transparent surface and remove cards from the bottom of the stack.
 
@@ -472,6 +540,24 @@ Pass criteria:
 - No visible damage.
 - Exit sensor count matches physical output count.
 
+### P3A: Offload and Output Tray Reliability
+
+**Goal:** Prove that the scanned card leaves the scan area and stacks without relying on fragile card-to-card pushing.
+
+Procedure:
+
+1. Run at least 50 dry-feed cycles with the phone removed.
+2. Observe the first, second, third, tenth, and fiftieth card entering the output tray.
+3. Intentionally stop with cards partially in the output path to check recovery.
+4. Repeat with a small stack already in the output tray.
+
+Pass criteria:
+
+- No card stalls at a lip, wall, detent, or tray entry.
+- No shingling that blocks the next feed.
+- Output cards remain contained and do not rebound into the scan area.
+- IR count matches the number of cards that fully cleared the scan position.
+
 ### P4: Camera Plane Repeatability
 
 Procedure:
@@ -512,6 +598,7 @@ Build:
 - Plain scan background.
 - Temporary diffuse lighting.
 - Manual card placement.
+- Simple CAD or sketch model of the proposed card path.
 
 Validate:
 
@@ -519,6 +606,7 @@ Validate:
 - Card distance, focus, and exposure.
 - Duplicate-card reset behavior.
 - Required reset-frame duration.
+- Card-path states before committing to hardware: loaded, captured, reset, and offloaded.
 
 No Arduino or motor is needed in this phase.
 
@@ -532,6 +620,7 @@ Build:
 - Hand-turned rubber roller.
 - Separator lip.
 - Output tray.
+- Mock capture lane, shutter, or offload path.
 
 Validate:
 
@@ -539,6 +628,8 @@ Validate:
 - Card wear.
 - Stack pressure from 100 to 10 cards.
 - Passive reset shutter concept.
+- Output tray behavior across repeated cards, not only the first card.
+- Whether positive downstream transport is needed before motorizing.
 
 ### Phase 2: Motorized Feeder
 
